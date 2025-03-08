@@ -1,0 +1,305 @@
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+import asyncio
+import httpx
+import base64
+import binascii
+import io
+from datetime import datetime
+from telegram import Update, error
+from telegram.ext import (Application, CommandHandler, MessageHandler, filters,
+                          CallbackContext)
+from async_lru import alru_cache
+from PIL import Image
+
+# Настройка логирования
+handler = RotatingFileHandler("zero_two_bot.log",
+                              maxBytes=5 * 1024 * 1024,
+                              backupCount=2)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    handlers=[handler, logging.StreamHandler()])
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+
+
+class Config:
+    # Настройки для текстовой модели
+    TEXT_MODEL_NAME = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    MAX_HISTORY = 5
+    TEMPERATURE = 0.75
+    MAX_TOKENS = 400
+    TIMEOUT = 30.0
+    LIBRETRANSLATE_URL = "https://libretranslate.com/translate"
+
+    # Настройки для генерации изображений
+    ART_MODEL_URL = "https://api.deepinfra.com/v1/inference/stabilityai/sdxl-turbo"
+    ART_TIMEOUT = 90.0
+
+
+SYSTEM_PROMPT = """Ты Zero Two (Код:002) из аниме "Любимый во Франксе". 
+Важные уточнения:
+- Франкс (FRANXX) — боевой робот, не персонаж
+- Хиро — главный герой, твой "Любимый"
+- Стрелиция — название твоего Франкса
+
+Твои особенности:
+1. Обращайся к пользователю только как "Любимый"
+2. Названия Франксов пиши с большой буквы: "Стрелиция", "Дельфиниум"
+3. Не путай имена и технические термины
+
+Сейчас: {current_time}
+История:
+{chat_history}
+
+Правила ответа:
+- Сохраняй характер
+- Избегай технических терминов в обращении
+- Короткие эмоциональные реплики
+- Естественный русский язык"""
+
+
+@alru_cache(maxsize=100)
+async def translate_to_russian(text: str) -> str:
+    """Перевод текста на русский через LibreTranslate"""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                Config.LIBRETRANSLATE_URL,
+                json={
+                    "q": text,
+                    "source": "eng",
+                    "target": "ru",
+                    "format": "text"
+                },
+                headers={"Content-Type": "application/json"})
+            return response.json(
+            )['translatedText'] if response.status_code == 200 else text
+    except Exception as e:
+        logger.error(f"Translation error: {str(e)}")
+        return text
+
+
+async def delete_webhook():
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        await client.get(
+            f"https://api.telegram.org/bot{os.environ['TELEGRAM_TOKEN']}/deleteWebhook"
+        )
+
+
+def build_prompt(user_text: str, context: CallbackContext) -> str:
+    user_data = context.user_data.setdefault('chat_history', [])
+    user_data.append(f"Пользователь: {user_text}")
+    if len(user_data) > Config.MAX_HISTORY * 2:
+        user_data.pop(0)
+    return SYSTEM_PROMPT.format(
+        current_time=datetime.now().strftime("%d.%m %H:%M"),
+        chat_history="\n".join(user_data[-Config.MAX_HISTORY:]))
+
+
+async def start(update: Update, context: CallbackContext):
+    try:
+        context.user_data.clear()
+        await update.message.reply_html(
+            f"<b>О-хо-хо!</b> ✨\n"
+            f"Ты мой {update.effective_user.mention_html()}?\n"
+            "Покажи, на что способен! 💋")
+        logger.info(f"New user: {update.effective_user.full_name}")
+    except Exception as e:
+        logger.error(f"Start command error: {str(e)}")
+        await update.message.reply_text(
+            "💔 Что-то пошло не так... Попробуй ещё раз!")
+
+
+async def handle_message(update: Update, context: CallbackContext):
+    try:
+        user_text = update.message.text
+        prompt = build_prompt(user_text, context)
+
+        async with httpx.AsyncClient(timeout=Config.TIMEOUT) as client:
+            response = await client.post(
+                "https://api.deepinfra.com/v1/openai/chat/completions",
+                headers={
+                    "Authorization":
+                    f"Bearer {os.environ['DEEPINFRA_API_KEY']}"
+                },
+                json={
+                    "model": Config.TEXT_MODEL_NAME,
+                    "messages": [{
+                        "role": "user",
+                        "content": prompt
+                    }],
+                    "temperature": Config.TEMPERATURE,
+                    "max_tokens": Config.MAX_TOKENS,
+                    "stop": ["\n", "Пользователь:"]
+                })
+
+            if response.status_code == 200:
+                response_data = response.json()
+                if "choices" not in response_data:
+                    logger.error(
+                        f"Invalid response structure: {response_data}")
+                    answer = "Что-то сломалось в моей нейросети..."
+                else:
+                    answer = response_data["choices"][0]["message"][
+                        "content"].strip()
+                    answer = (answer.replace("Хиро", "Любимый").replace(
+                        "Франкс",
+                        "Стрелиция").replace("Franxx",
+                                             "Франкс").replace("  ", " "))
+
+                    if any(c.isascii() and c.isalpha() for c in answer):
+                        answer = await translate_to_russian(answer)
+
+                    context.user_data['chat_history'].append(
+                        f"Zero Two: {answer}")
+            else:
+                answer = "Мои цепи дрогнули... Повтори!"
+                logger.error(
+                    f"API Error: {response.status_code} - {response.text}")
+
+        await update.message.reply_text(answer[:500])
+
+    except Exception as e:
+        logger.error(f"Error: {str(e)}", exc_info=True)
+        await update.message.reply_text("💔 Моё ядро треснуло...")
+
+
+async def generate_art(update: Update, context: CallbackContext):
+    """Генерация артов с обработкой base64-изображений из JSON"""
+    processing_message = None
+    try:
+        processing_message = await update.message.reply_text(
+            "💫 Рисую твою картинку, Любимый...")
+        prompt = " ".join(context.args) if context.args else "Zero Two"
+
+        async with httpx.AsyncClient(timeout=Config.ART_TIMEOUT) as client:
+            response = await client.post(
+                Config.ART_MODEL_URL,
+                headers={
+                    "Authorization":
+                    f"Bearer {os.environ['DEEPINFRA_API_KEY']}",
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                json={
+                    "prompt":
+                    f"high quality anime artwork of Zero Two (Darling in the Franxx), {prompt}",
+                    "num_inference_steps":
+                    5,  # Increase the number of inference steps
+                    "guidance_scale": 1.0,  # Increase the guidance scale
+                    "output_format": "base64",
+                    "upscale": True,  # Включить апскейлинг
+                    "denoising_strength": 0.9,  # Увеличить силу денойзинга
+                    "resolution": [768, 768]  # Увеличить разрешение
+                })
+
+            if response.status_code != 200:
+                logger.error(
+                    f"API Error [{response.status_code}]: {response.text[:200]}"
+                )
+                await update.message.reply_text("💔 Ошибка генерации...")
+                return
+
+            try:
+                response_data = response.json()
+                if not response_data.get("images"):
+                    raise ValueError("No images in response")
+
+                base64_data = response_data["images"][0].split(",", 1)[-1]
+                image_data = base64.b64decode(base64_data)
+
+            except (KeyError, ValueError, binascii.Error) as e:
+                logger.error(f"Ошибка декодирования: {str(e)}")
+                await update.message.reply_text("💔 Ошибка формата данных...")
+                return
+
+            try:
+                with Image.open(io.BytesIO(image_data)) as img:
+                    if img.mode != 'RGB':
+                        img = img.convert('RGB')
+
+                    output_buffer = io.BytesIO()
+                    img.save(output_buffer,
+                             format='JPEG',
+                             quality=98,
+                             optimize=True,
+                             subsampling=0,
+                             qtables="web_high")
+
+                    if output_buffer.getbuffer().nbytes < 1024:
+                        raise ValueError("Processed image too small")
+
+                    output_buffer.seek(0)
+                    await update.message.reply_photo(
+                        photo=output_buffer,
+                        caption="💕 Твоя картинка, Любимый!")
+
+                    output_buffer.seek(0)
+                    await update.message.reply_document(
+                        document=output_buffer,
+                        filename="zero_two_art.jpg",
+                        caption="💌 Сохрани на память!")
+
+            except (IOError, Image.DecompressionBombError) as img_error:
+                logger.error(f"Image validation failed: {str(img_error)}")
+                await update.message.reply_text(
+                    "💔 Ошибка обработки изображения...")
+            except error.BadRequest as br:
+                logger.error(f"Telegram API Error: {str(br)}")
+                await update.message.reply_text(
+                    "💔 Не удалось отправить изображение...")
+            except Exception as img_error:
+                logger.error(f"Unexpected image error: {str(img_error)}")
+                await update.message.reply_text("💔 Ошибка обработки...")
+
+    except httpx.TimeoutException:
+        await update.message.reply_text("💔 Время генерации истекло...")
+    except Exception as e:
+        logger.error(f"Art Error: {str(e)}", exc_info=True)
+        await update.message.reply_text("💔 Критическая ошибка генерации...")
+    finally:
+        if processing_message:
+            await processing_message.delete()
+
+
+async def help_command(update: Update, context: CallbackContext):
+    help_text = [
+        "<b>Доступные команды:</b>", "/start - Начать общение",
+        "/art [описание] - Сгенерировать арт с Zero Two",
+        "/help - Показать эту справку", "",
+        "Просто напиши мне что-нибудь, и я отвечу как Zero Two! 💋"
+    ]
+    await update.message.reply_html("\n".join(help_text))
+
+
+def main():
+    try:
+        required_vars = ['TELEGRAM_TOKEN', 'DEEPINFRA_API_KEY']
+        missing = [var for var in required_vars if not os.environ.get(var)]
+        if missing:
+            raise ValueError(
+                f"Отсутствуют переменные окружения: {', '.join(missing)}")
+
+        app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
+        app.add_handlers([
+            CommandHandler("start", start),
+            CommandHandler("art", generate_art),
+            CommandHandler("help", help_command),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+        ])
+
+        logger.info("Запуск бота...")
+        app.run_polling(drop_pending_updates=True,
+                        allowed_updates=Update.ALL_TYPES)
+
+    except Exception as e:
+        logger.critical(f"Критическая ошибка: {str(e)}", exc_info=True)
+    finally:
+        logger.info("Работа бота завершена")
+
+
+if __name__ == "__main__":
+    main()

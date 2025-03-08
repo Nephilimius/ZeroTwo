@@ -1,0 +1,141 @@
+import os
+import logging
+from logging.handlers import RotatingFileHandler
+import asyncio
+import httpx
+import base64
+import binascii
+import io
+from datetime import datetime
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    filters,
+    CallbackContext
+)
+from async_lru import alru_cache
+from PIL import Image
+
+# Настройка логирования
+handler = RotatingFileHandler("zero_two_bot.log", maxBytes=5 * 1024 * 1024, backupCount=2)
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+    handlers=[handler, logging.StreamHandler()]
+)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+
+class Config:
+    # Настройки для текстовой модели
+    TEXT_MODEL_NAME = "mistralai/Mixtral-8x7B-Instruct-v0.1"
+    MAX_HISTORY = 5
+    TEMPERATURE = 0.75
+    MAX_TOKENS = 400
+    TIMEOUT = 30.0
+    LIBRETRANSLATE_URL = "https://libretranslate.com/translate"
+    
+    # Настройки для генерации изображений
+    ART_MODEL_URL = "https://api.deepinfra.com/v1/inference/stability-ai/sdxl"
+    ART_TIMEOUT = 90.0
+
+SYSTEM_PROMPT = """..."""  # Оставить без изменений
+
+# Функции translate_to_russian, build_prompt, start, handle_message 
+# остаются без изменений из второго кода
+
+async def generate_art(update: Update, context: CallbackContext):
+    """Генерация артов через DeepInfra API (объединенная версия)"""
+    try:
+        processing_message = await update.message.reply_text("💫 Рисую твою картинку, Любимый...")
+        prompt = " ".join(context.args) if context.args else "Zero Two"
+
+        async with httpx.AsyncClient(timeout=Config.ART_TIMEOUT) as client:
+            response = await client.post(
+                Config.ART_MODEL_URL,
+                headers={
+                    "Authorization": f"Bearer {os.environ['DEEPINFRA_API_KEY']}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "prompt": f"anime artwork of Zero Two (Darling in the Franxx), {prompt}",
+                    "width": 1024,
+                    "height": 1024
+                }
+            )
+
+            if response.status_code != 200:
+                logger.error(f"API Error: {response.status_code} - {response.text}")
+                await update.message.reply_text("💔 Ошибка генерации...")
+                return
+
+            image_data = response.content
+
+            # Создаем отдельные объекты для фото и документа
+            with io.BytesIO(image_data) as img_io, io.BytesIO(image_data) as doc_io:
+                img_io.seek(0)
+                doc_io.seek(0)
+                
+                await update.message.reply_photo(
+                    photo=img_io,
+                    caption="💕 Твоя картинка, Любимый!"
+                )
+                
+                doc_io.seek(0)
+                await update.message.reply_document(
+                    document=doc_io,
+                    filename="zero_two_art.png",
+                    caption="💌 Сохрани на память!"
+                )
+
+    except httpx.TimeoutException:
+        await update.message.reply_text("💔 Время генерации истекло...")
+    except Exception as e:
+        logger.error(f"Art Error: {str(e)}", exc_info=True)
+        await update.message.reply_text("💔 Ошибка генерации...")
+    finally:
+        await processing_message.delete()
+
+async def help_command(update: Update, context: CallbackContext):
+    """Обновленная справка с информацией о новых командах"""
+    help_text = [
+        "<b>Доступные команды:</b>",
+        "/start - Начать общение",
+        "/art [описание] - Сгенерировать арт с Zero Two",
+        "/help - Показать эту справку",
+        "",
+        "Просто напиши мне что-нибудь, и я отвечу как Zero Two! 💋"
+    ]
+    await update.message.reply_html("\n".join(help_text))
+
+def main():
+    try:
+        required_vars = ['TELEGRAM_TOKEN', 'DEEPINFRA_API_KEY']
+        missing = [var for var in required_vars if not os.environ.get(var)]
+        if missing:
+            raise ValueError(f"Отсутствуют переменные окружения: {', '.join(missing)}")
+
+        app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
+        
+        app.add_handlers([
+            CommandHandler("start", start),
+            CommandHandler("art", generate_art),
+            CommandHandler("help", help_command),
+            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+        ])
+
+        logger.info("Запуск бота...")
+        app.run_polling(
+            drop_pending_updates=True,
+            allowed_updates=Update.ALL_TYPES
+        )
+
+    except Exception as e:
+        logger.critical(f"Критическая ошибка: {str(e)}", exc_info=True)
+    finally:
+        logger.info("Работа бота завершена")
+
+if __name__ == "__main__":
+    main()
