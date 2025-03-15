@@ -1,0 +1,31 @@
+2025-03-04 03:08:49,900 - __main__ - INFO - Инициализация бота...
+2025-03-04 03:08:50,675 - __main__ - CRITICAL - Критическая ошибка запуска: 'NoneType' object is not callable
+Traceback (most recent call last):
+  File "C:\Users\igma8\PycharmProjects\bot.py\main.py", line 112, in main
+    application.add_handler(application.post_init(startup))
+                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+TypeError: 'NoneType' object is not callable
+2025-03-04 03:09:11,571 - __main__ - INFO - Инициализация бота...
+2025-03-04 03:09:12,359 - __main__ - CRITICAL - Критическая ошибка запуска: 'NoneType' object is not callable
+Traceback (most recent call last):
+  File "C:\Users\igma8\PycharmProjects\bot.py\main.py", line 112, in main
+    application.add_handler(application.post_init(startup))
+                            ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+TypeError: 'NoneType' object is not callable
+2025-03-04 03:14:06,979 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getMe "HTTP/1.1 200 OK"
+2025-03-04 03:14:07,500 - httpx - INFO - HTTP Request: GET https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/deleteWebhook "HTTP/1.1 200 OK"
+2025-03-04 03:14:07,501 - __main__ - INFO - Удаление вебхука. Статус: 200
+2025-03-04 03:14:07,552 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/deleteWebhook "HTTP/1.1 200 OK"
+2025-03-04 03:14:07,553 - telegram.ext.Application - INFO - Application started
+2025-03-04 03:14:17,731 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:14:27,793 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:14:37,854 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:14:42,165 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:14:42,166 - __main__ - INFO - Сообщение от 1014841100: привет
+2025-03-04 03:14:44,213 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 03:14:44,430 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 03:14:52,581 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:15:02,644 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:15:12,462 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:15:12,462 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-03-04 03:15:12,462 - telegram.ext.Application - INFO - Application.stop() complete

@@ -1,0 +1,57 @@
+2025-03-04 02:55:48,817 - __main__ - INFO - ��� Zero Two ������� �����������!
+2025-03-04 02:55:48,993 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getMe "HTTP/1.1 200 OK"
+2025-03-04 02:55:49,046 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/deleteWebhook "HTTP/1.1 200 OK"
+2025-03-04 02:55:49,047 - telegram.ext.Application - INFO - Application started
+2025-03-04 02:55:59,196 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:55:59,839 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:02,983 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:02,986 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 02:56:03,161 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 02:56:03,233 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 02:56:13,033 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:23,100 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:27,576 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:29,830 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 02:56:30,009 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 02:56:37,980 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:48,030 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:51,654 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:56:54,465 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 02:56:54,647 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 02:57:02,060 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:57:08,522 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:57:12,595 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 02:57:12,785 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 02:57:18,927 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:57:28,977 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:57:39,028 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:57:49,079 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:57:58,457 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:58:01,356 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 02:58:01,537 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 02:58:08,859 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:58:18,911 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:58:22,627 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 02:58:22,628 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-03-04 02:58:22,628 - telegram.ext.Application - INFO - Application.stop() complete
+2025-03-04 02:58:22,628 - __main__ - INFO - ��� ��������� ����������
+2025-03-04 03:18:39,481 - __main__ - INFO - Запускаю бота...
+2025-03-04 03:18:39,669 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getMe "HTTP/1.1 200 OK"
+2025-03-04 03:18:40,186 - httpx - INFO - HTTP Request: GET https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/deleteWebhook "HTTP/1.1 200 OK"
+2025-03-04 03:18:40,186 - __main__ - INFO - Статус удаления вебхука: 200
+2025-03-04 03:18:40,187 - __main__ - INFO - Бот успешно запущен и готов к работе! 🚀
+2025-03-04 03:18:40,245 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/deleteWebhook "HTTP/1.1 200 OK"
+2025-03-04 03:18:40,246 - telegram.ext.Application - INFO - Application started
+2025-03-04 03:18:50,453 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:18:52,144 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:18:55,896 - httpx - INFO - HTTP Request: POST https://api.deepinfra.com/v1/openai/chat/completions "HTTP/1.1 200 OK"
+2025-03-04 03:18:56,094 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/sendMessage "HTTP/1.1 200 OK"
+2025-03-04 03:19:02,564 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:19:12,623 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:19:22,682 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:19:32,743 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:19:42,060 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8117832036:AAHwNtOkgbdmyw3S2TjqUofjApW4HqzmYmc/getUpdates "HTTP/1.1 200 OK"
+2025-03-04 03:19:42,060 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-03-04 03:19:42,060 - telegram.ext.Application - INFO - Application.stop() complete
+2025-03-04 03:19:42,061 - __main__ - INFO - Останавливаю бота...
+2025-03-04 03:19:42,062 - __main__ - INFO - Бот полностью остановлен. До свидания! 👋
