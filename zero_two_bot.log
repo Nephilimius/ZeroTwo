@@ -815,3 +815,9 @@ httpx.ReadTimeout
 2025-03-15 04:28:04 - INFO - pymorphy3.opencorpora_dict.wrapper - Loading dictionaries from C:\Users\igma8\PycharmProjects\bot\.venv\Lib\site-packages\pymorphy3_dicts_ru\data
 2025-03-15 04:28:04 - INFO - pymorphy3.opencorpora_dict.wrapper - format: 2.4, revision: 417150, updated: 2022-01-08T22:09:24.565962
 2025-03-15 04:28:05 - INFO - ZeroTwoBot - Инициализация системы FRANXX...
+2025-03-16 03:02:48 - INFO - pymorphy3.opencorpora_dict.wrapper - Loading dictionaries from /run/media/maxim/Windows 11/Users/igma8/PycharmProjects/bot/venv/lib/python3.13/site-packages/pymorphy3_dicts_ru/data
+2025-03-16 03:02:48 - INFO - pymorphy3.opencorpora_dict.wrapper - format: 2.4, revision: 417150, updated: 2022-01-08T22:09:24.565962
+2025-03-16 03:02:48 - CRITICAL - ZeroTwoBot - Отсутствуют переменные окружения: TELEGRAM_TOKEN, MISTRAL_API_KEY
+2025-03-16 03:13:26 - INFO - pymorphy3.opencorpora_dict.wrapper - Loading dictionaries from /run/media/maxim/Windows 11/Users/igma8/PycharmProjects/bot/venv/lib/python3.13/site-packages/pymorphy3_dicts_ru/data
+2025-03-16 03:13:26 - INFO - pymorphy3.opencorpora_dict.wrapper - format: 2.4, revision: 417150, updated: 2022-01-08T22:09:24.565962
+2025-03-16 03:13:26 - INFO - ZeroTwoBot - Инициализация системы FRANXX...
