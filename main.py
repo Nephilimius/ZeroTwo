@@ -5,7 +5,6 @@ import re
 import json
 import time
 from logging.handlers import RotatingFileHandler
-import asyncio
 import httpx
 from telegram import Update
 from telegram.ext import (
@@ -41,7 +40,6 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
-logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 logger = logging.getLogger("ZeroTwoBot")
 logger.setLevel(logging.DEBUG)
@@ -129,7 +127,7 @@ class Config:
         try:
             with open(self.BAN_LIST_FILE, 'w') as f:
                 json.dump(list(self.banned_users), f)
-        except Exception as e:
+        except Exception as e:  # Исправленный except
             logger.error(f"Error saving ban list: {e}")
 
 config = Config()
@@ -199,9 +197,10 @@ async def start(update: Update, context: CallbackContext):
         user = update.effective_user
         logger.info(f"New user: {user.full_name} (ID: {user.id})")
 
+        # Исправленные f-строки
         await update.message.reply_html(
-            f"<b>Хи-хи~ Приветствую, тычинка...</b> 😈\n"
-            f"Готов к синхронизации в <i>Стрелиции</i>?"
+            "<b>Хи-хи~ Приветствую, тычинка...</b> 😈\n"
+            "Готов к синхронизации в <i>Стрелиции</i>?"
         )
 
     except Exception as e:
@@ -220,13 +219,11 @@ async def handle_message(update: Update, context: CallbackContext):
         user_text = update.message.text
         logger.debug(f"Message from {user.full_name}: {user_text[:50]}...")
 
-        # Проверка триггеров
         for trigger, response in Config.KLAXO_TRIGGERS.items():
             if trigger in user_text.lower():
                 await update.message.reply_text(response)
                 return
 
-        # Проверка безопасности
         if await check_safety_rules(user_text):
             context.user_data['warnings'] = context.user_data.get('warnings', 0) + 1
             
@@ -265,33 +262,27 @@ async def handle_message(update: Update, context: CallbackContext):
                 raw_answer = response_data["choices"][0]["message"]["content"]
                 logger.debug(f"Raw API response: {raw_answer}")
 
-                # Постобработка
                 answer = raw_answer.split("~")[0].strip()
                 answer = fix_terminology(answer)
                 
-                # Автокоррекция
                 answer = re.sub(
                     r'\b([а-яА-ЯёЁ]*)[a-zA-Z]+([а-яА-ЯёЁ]*)\b',
                     lambda m: m.group(1) + m.group(2),
                     answer
                 )
                 
-                # Замена по словарю
                 for eng, ru in Config.REPLACE_RULES.items():
                     answer = re.sub(fr'\b{re.escape(eng)}\b', ru, answer, flags=re.IGNORECASE)
                 
-                # Проверка языка
                 for word in answer.split():
                     parsed = morph.parse(word)[0]
                     if 'LATN' in parsed.tag:
                         answer = answer.replace(word, '')
                 
-                # Очистка
                 answer = re.sub(r'^[^а-яА-ЯёЁ]+', '', answer)
                 answer = re.sub(r'\s+', ' ', answer).strip()
                 answer = re.sub(Config.ALLOWED_SYMBOLS, '', answer)
                 
-                # Форматирование
                 sentences = re.split(r'[.!?…]', answer)
                 answer = '~'.join([s.strip() for s in sentences[:Config.MAX_SENTENCES] if s.strip()])
                 
@@ -308,7 +299,6 @@ async def handle_message(update: Update, context: CallbackContext):
                 if len(answer.split()) > 25:
                     answer = '~'.join(answer.split('~')[:2]) + '...'
 
-                # Обновление истории
                 history = context.user_data.setdefault('chat_history', [])
                 history.extend([
                     {"role": "user", "content": user_text},
@@ -385,4 +375,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
