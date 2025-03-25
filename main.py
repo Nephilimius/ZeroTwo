@@ -4,16 +4,19 @@ import random
 import re
 import json
 import time
+import sys
+import nltk
+import spacy
 from logging.handlers import RotatingFileHandler
 import httpx
 from telegram import Update
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler, filters, CallbackContext
+    Application, CommandHandler, MessageHandler, filters, ContextTypes
 )
 from pymorphy3 import MorphAnalyzer
 
 # Настройка формата логов
-LOG_FORMTER = logging.Formatter(
+LOG_FORMATTER = logging.Formatter(
     "%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
@@ -25,10 +28,10 @@ file_handler = RotatingFileHandler(
     backupCount=2,
     encoding="utf-8"
 )
-file_handler.setFormatter(LOG_FORMTER)
+file_handler.setFormatter(LOG_FORMATTER)
 
 console_handler = logging.StreamHandler()
-console_handler.setFormatter(LOG_FORMTER)
+console_handler.setFormatter(LOG_FORMATTER)
 
 # Настройка корневого логгера
 logging.basicConfig(
@@ -42,9 +45,18 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
 
 logger = logging.getLogger("ZeroTwoBot")
+
+# Загрузка моделей
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+nlp = spacy.load("ru_core_news_sm")
 logger.setLevel(logging.DEBUG)
 
 class Config:
+    # Добавление новых параметров для NLTK и spaCy
+    NLTK_TOKENIZER = nltk.word_tokenize
+    NLTK_POS_TAGGER = nltk.pos_tag
+    SPACY_NLP = nlp
     MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
     MODEL_NAME = "open-mixtral-8x7b"
     TEMPERATURE = 0.75
@@ -91,10 +103,11 @@ class Config:
         r'\bмех\b': 'Франкс'
     }
     
+    # Расширенные фильтры безопасности
     SAFETY_FILTERS = [
-        r"\b(минет|грудь|сиськи|уебать|хер|пенис)\b",
-        r"\b(китаез|чурок|япошек|кореец)\b",
-        r"\b(расизм|нацист|геи|лгбт)\b"
+        r"\b(минет|грудь|сиськи|уебать|хер|пенис|секс|порно|эротика)\b",
+        r"\b(китаез|чурок|япошек|кореец|негр|черномазый|узкоглазый)\b",
+        r"\b(расизм|нацист|геи|лгбт|фашист|гомосек|пидор)\b"
     ]
     
     SAFETY_RESPONSES = [
@@ -127,7 +140,7 @@ class Config:
         try:
             with open(self.BAN_LIST_FILE, 'w') as f:
                 json.dump(list(self.banned_users), f)
-        except Exception as e:  # Исправленный except
+        except Exception as e:
             logger.error(f"Error saving ban list: {e}")
 
 config = Config()
@@ -143,11 +156,11 @@ allowed_emojis = ['😈', '💥', '❤️🔥', '💋']
 def is_banned(user_id: int) -> bool:
     return user_id in config.banned_users
 
-async def check_safety_rules(user_text: str) -> bool:
+def check_safety_rules(user_text: str) -> bool:
     text = user_text.lower()
     return any(re.search(pattern, text) for pattern in Config.SAFETY_FILTERS)
 
-def build_messages(user_text: str, context: CallbackContext) -> list:
+def build_messages(user_text: str, context: ContextTypes.DEFAULT_TYPE) -> list:
     history = context.user_data.get('chat_history', [])
     content = (
         "Ты Zero Two (Код: 002) из аниме Darling in the Franxx. "
@@ -160,11 +173,11 @@ def build_messages(user_text: str, context: CallbackContext) -> list:
         "- APE: Верховный Совет\n"
         "- Синхронизация: связь между пилотами\n\n"
         "Правила ответов:\n"
-        "1. Всегда называй пользователя 'пилотом'\n" # Changed to пилот
+        "1. Всегда называй пользователя 'пилотом'\n"
         "2. Используй термины: Стрелиция, ядро рёвозавра\n"
         "3. Сохрани саркастичный стиль с элементами флирта\n\n"
         "Примеры:\n"
-        "1. 'Синхронизация 400%... Не сгори в кабине, пилот~ 😈'\n" # Changed to пилот
+        "1. 'Синхронизация 400%... Не сгори в кабине, пилот~ 😈'\n"
         "2. 'Рога зудят... Вижу ядро рёвозавра на радарах!'\n"
         "3. 'Верховный Совет снова шлёт нас на смерть? Как скучно... 💋'"
     )
@@ -191,15 +204,14 @@ def fix_terminology(text: str) -> str:
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     return text
 
-async def start(update: Update, context: CallbackContext):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         context.user_data.clear()
         user = update.effective_user
         logger.info(f"New user: {user.full_name} (ID: {user.id})")
 
-        # Исправленные f-строки
         await update.message.reply_html(
-            "<b>Хи-хи~ Приветствую, пилот...</b> 😈\n" # Changed to пилот
+            "<b>Хи-хи~ Приветствую, пилот...</b> 😈\n"
             "Готов к синхронизации в <i>Стрелиции</i>?"
         )
 
@@ -207,7 +219,18 @@ async def start(update: Update, context: CallbackContext):
         logger.error(f"Start error: {str(e)}", exc_info=False)
         await update.message.reply_text("💔 Треснуло ядро... опять...")
 
-async def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Использование NLTK для базовых задач
+    tokens = Config.NLTK_TOKENIZER(update.message.text)
+    pos_tags = Config.NLTK_POS_TAGGER(tokens)
+
+    # Использование spaCy для более сложных задач
+    doc = Config.SPACY_NLP(update.message.text)
+    entities = [(ent.text, ent.label_) for ent in doc.ents]
+
+    # Вывод результатов
+    response = f"Tokens: {tokens}\nPOS Tags: {pos_tags}\nEntities: {entities}"
+    await update.message.reply_text(response)
     user = update.effective_user
     if is_banned(user.id):
         return
@@ -224,7 +247,7 @@ async def handle_message(update: Update, context: CallbackContext):
                 await update.message.reply_text(response)
                 return
 
-        if await check_safety_rules(user_text):
+        if check_safety_rules(user_text):
             context.user_data['warnings'] = context.user_data.get('warnings', 0) + 1
             
             if context.user_data['warnings'] >= Config.WARN_LIMIT:
@@ -265,6 +288,7 @@ async def handle_message(update: Update, context: CallbackContext):
                 answer = raw_answer.split("~")[0].strip()
                 answer = fix_terminology(answer)
                 
+                # Улучшенное регулярное выражение для замены латинских символов
                 answer = re.sub(
                     r'\b([а-яА-ЯёЁ]*)[a-zA-Z]+([а-яА-ЯёЁ]*)\b',
                     lambda m: m.group(1) + m.group(2),
@@ -299,11 +323,13 @@ async def handle_message(update: Update, context: CallbackContext):
                 if len(answer.split()) > 25:
                     answer = '~'.join(answer.split('~')[:2]) + '...'
 
+                # Улучшенная обработка истории чата
                 history = context.user_data.setdefault('chat_history', [])
                 history.extend([
                     {"role": "user", "content": user_text},
                     {"role": "assistant", "content": answer}
                 ])
+                # Сохраняем только последние сообщения для контекста
                 if len(history) > Config.MAX_HISTORY * 2:
                     context.user_data['chat_history'] = history[-(Config.MAX_HISTORY * 2):]
 
@@ -322,7 +348,7 @@ async def handle_message(update: Update, context: CallbackContext):
         )
         await update.message.reply_text("💔 Критическое повреждение... опять...")
 
-async def help_command(update: Update, context: CallbackContext):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = [
         "<b>Доступные команды:</b> 😈",
         "/start - Начать заново",
@@ -335,7 +361,7 @@ async def help_command(update: Update, context: CallbackContext):
     ]
     await update.message.reply_html("\n".join(help_text))
 
-async def ban_user(update: Update, context: CallbackContext):
+async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != Config.ADMIN_ID:
         return
     
@@ -351,23 +377,20 @@ def main():
     required_vars = ['TELEGRAM_TOKEN', 'MISTRAL_API_KEY']
     if missing := [var for var in required_vars if not os.environ.get(var)]:
         logger.critical("Отсутствуют переменные окружения: %s", ", ".join(missing))
-        return
+        sys.exit(1)  # Добавлен код выхода при отсутствии переменных окружения
 
     try:
         app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
-        app.add_handlers([
-            CommandHandler("start", start),
-            CommandHandler("help", help_command),
-            CommandHandler("ban", ban_user),
-            MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-        ])
+        
+        # Исправлено: отдельные вызовы add_handler вместо add_handlers
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("help", help_command))
+        app.add_handler(CommandHandler("ban", ban_user))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
         logger.info("Инициализация системы FRANXX...")
-        app.run_polling(
-            drop_pending_updates=True,
-            close_loop=False,
-            stop_signals=[]
-        )
+        # Обновлены параметры run_polling для совместимости с python-telegram-bot v20+
+        app.run_polling(drop_pending_updates=True)
 
     except Exception as e:
         logger.critical("Фатальная ошибка: %s", str(e), exc_info=True)
