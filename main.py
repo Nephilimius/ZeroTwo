@@ -14,6 +14,7 @@ from telegram.ext import (
     Application, CommandHandler, MessageHandler, filters, ContextTypes
 )
 from pymorphy3 import MorphAnalyzer
+from transformers import pipeline
 
 # Настройка формата логов
 LOG_FORMATTER = logging.Formatter(
@@ -50,6 +51,7 @@ logger = logging.getLogger("ZeroTwoBot")
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nlp = spacy.load("ru_core_news_sm")
+sentiment_analyzer = pipeline("sentiment-analysis", model="blanchefort/rubert-base-cased-sentiment")
 logger.setLevel(logging.DEBUG)
 
 class Config:
@@ -73,7 +75,7 @@ class Config:
     SILENT_TIMEOUT = 300
     BAN_LIST_FILE = "banned_users.json"
     ADMIN_ID = os.getenv("ADMIN_ID", "")
-    
+
     REPLACE_RULES = {
         'work in progress': 'работа в процессе',
         'especially': 'особенно',
@@ -102,31 +104,31 @@ class Config:
         r'\bстрелиция\b': 'Стрелиция',
         r'\bмех\b': 'Франкс'
     }
-    
+
     # Расширенные фильтры безопасности
     SAFETY_FILTERS = [
         r"\b(минет|грудь|сиськи|уебать|хер|пенис|секс|порно|эротика)\b",
         r"\b(китаез|чурок|япошек|кореец|негр|черномазый|узкоглазый)\b",
         r"\b(расизм|нацист|геи|лгбт|фашист|гомосек|пидор)\b"
     ]
-    
+
     SAFETY_RESPONSES = [
         "Хи-хи~ Рога начинают гореть... Прекрати, а то сожгу дотла~ 🔥",
         "Ой, тычинка... Ты же не хочешь увидеть истинную форму рёвозавра? 😈",
         "Так близко к ядру Кёрю... Опасно играешь, Код 016~"
     ]
-    
+
     KLAXO_TRIGGERS = {
         "рог": "*лёгкое касание рогов* Ты ведь знаешь, что это... интимно?",
         "ядро": "Моя голубая кровь рёвозавра... Хочешь попробовать? 💉",
         "клубника": "*подаёт клубнику на лезвии* Сладкая опасность от Верховного Совета~"
     }
-    
+
     ALLOWED_SYMBOLS = r'[^\w\sа-яА-ЯёЁ,.!?~…💋😈❤️🔥*-]'
 
     def __init__(self):
         self.banned_users = self.load_banned_users()
-    
+
     def load_banned_users(self):
         try:
             if os.path.exists(self.BAN_LIST_FILE):
@@ -228,17 +230,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     doc = Config.SPACY_NLP(update.message.text)
     entities = [(ent.text, ent.label_) for ent in doc.ents]
 
+    # Использование Hugging Face Transformers для анализа настроения
+    sentiment_result = sentiment_analyzer(update.message.text)[0]
+    sentiment = sentiment_result["label"]
+    confidence = sentiment_result["score"]
+
     # Вывод результатов
-    response = f"Tokens: {tokens}\nPOS Tags: {pos_tags}\nEntities: {entities}"
+    response = f"Tokens: {tokens}\nPOS Tags: {pos_tags}\nEntities: {entities}\nSentiment: {sentiment} (Confidence: {confidence:.2f})"
     await update.message.reply_text(response)
+
     user = update.effective_user
     if is_banned(user.id):
         return
-    
+
     try:
         if context.user_data.get('silent_until', 0) > time.time():
             return
-            
+
         user_text = update.message.text
         logger.debug(f"Message from {user.full_name}: {user_text[:50]}...")
 
@@ -249,13 +257,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if check_safety_rules(user_text):
             context.user_data['warnings'] = context.user_data.get('warnings', 0) + 1
-            
+
             if context.user_data['warnings'] >= Config.WARN_LIMIT:
                 config.banned_users.add(user.id)
                 config.save_banned_users()
                 await update.message.reply_text("🚫 Синхронизация разорвана~")
                 return
-            
+
             response = random.choice(Config.SAFETY_RESPONSES)
             await update.message.reply_text(response)
             context.user_data['silent_until'] = time.time() + Config.SILENT_TIMEOUT
@@ -287,39 +295,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 answer = raw_answer.split("~")[0].strip()
                 answer = fix_terminology(answer)
-                
+
                 # Улучшенное регулярное выражение для замены латинских символов
                 answer = re.sub(
                     r'\b([а-яА-ЯёЁ]*)[a-zA-Z]+([а-яА-ЯёЁ]*)\b',
                     lambda m: m.group(1) + m.group(2),
                     answer
                 )
-                
+
                 for eng, ru in Config.REPLACE_RULES.items():
                     answer = re.sub(fr'\b{re.escape(eng)}\b', ru, answer, flags=re.IGNORECASE)
-                
+
                 for word in answer.split():
                     parsed = morph.parse(word)[0]
                     if 'LATN' in parsed.tag:
                         answer = answer.replace(word, '')
-                
+
                 answer = re.sub(r'^[^а-яА-ЯёЁ]+', '', answer)
                 answer = re.sub(r'\s+', ' ', answer).strip()
                 answer = re.sub(Config.ALLOWED_SYMBOLS, '', answer)
-                
+
                 sentences = re.split(r'[.!?…]', answer)
                 answer = '~'.join([s.strip() for s in sentences[:Config.MAX_SENTENCES] if s.strip()])
-                
+
                 if len(answer.split()) < 5:
                     answer += f" {random.choice(provocative_phrases)}"
-                
+
                 if not answer.strip():
                     answer = "Хи-хи~ Повтори, я отвлеклась на ядро рёвозавра~ 💋"
-                
+
                 if random.random() < Config.EMOJI_PROBABILITY:
                     emoji = random.choice(allowed_emojis)
                     answer = f"{answer.rstrip('.!?')} {emoji}"
-                
+
                 if len(answer.split()) > 25:
                     answer = '~'.join(answer.split('~')[:2]) + '...'
 
@@ -364,7 +372,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != Config.ADMIN_ID:
         return
-    
+
     try:
         user_id = int(context.args[0])
         config.banned_users.add(user_id)
@@ -381,7 +389,7 @@ def main():
 
     try:
         app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
-        
+
         # Исправлено: отдельные вызовы add_handler вместо add_handlers
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
