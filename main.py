@@ -5,9 +5,6 @@ import re
 import json
 import time
 import sys
-import nltk
-import spacy
-from logging.handlers import RotatingFileHandler
 import httpx
 from telegram import Update
 from telegram.ext import (
@@ -15,6 +12,7 @@ from telegram.ext import (
 )
 from pymorphy3 import MorphAnalyzer
 from transformers import pipeline
+from logging.handlers import RotatingFileHandler
 
 # Настройка формата логов
 LOG_FORMATTER = logging.Formatter(
@@ -48,17 +46,10 @@ logging.getLogger("telegram").setLevel(logging.WARNING)
 logger = logging.getLogger("ZeroTwoBot")
 
 # Загрузка моделей
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-nlp = spacy.load("ru_core_news_sm")
 sentiment_analyzer = pipeline("sentiment-analysis", model="blanchefort/rubert-base-cased-sentiment")
 logger.setLevel(logging.DEBUG)
 
 class Config:
-    # Добавление новых параметров для NLTK и spaCy
-    NLTK_TOKENIZER = nltk.word_tokenize
-    NLTK_POS_TAGGER = nltk.pos_tag
-    SPACY_NLP = nlp
     MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
     MODEL_NAME = "open-mixtral-8x7b"
     TEMPERATURE = 0.75
@@ -222,22 +213,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("💔 Треснуло ядро... опять...")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Использование NLTK для базовых задач
-    tokens = Config.NLTK_TOKENIZER(update.message.text)
-    pos_tags = Config.NLTK_POS_TAGGER(tokens)
-
-    # Использование spaCy для более сложных задач
-    doc = Config.SPACY_NLP(update.message.text)
-    entities = [(ent.text, ent.label_) for ent in doc.ents]
-
     # Использование Hugging Face Transformers для анализа настроения
     sentiment_result = sentiment_analyzer(update.message.text)[0]
     sentiment = sentiment_result["label"]
     confidence = sentiment_result["score"]
 
     # Вывод результатов
-    response = f"Tokens: {tokens}\nPOS Tags: {pos_tags}\nEntities: {entities}\nSentiment: {sentiment} (Confidence: {confidence:.2f})"
-    await update.message.reply_text(response)
+    response = f"Sentiment: {sentiment} (Confidence: {confidence:.2f})"
+    # await update.message.reply_text(response)
 
     user = update.effective_user
     if is_banned(user.id):
@@ -389,6 +372,29 @@ def main():
 
     try:
         app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
+
+        # Проверка на наличие уже запущенных экземпляров бота
+        if os.path.exists("bot.lock"):
+            logger.critical("Другой экземпляр бота уже запущен. Завершение выполнения.")
+            sys.exit(1)
+
+        # Создание файла блокировки
+        with open("bot.lock", "w") as lock_file:
+            lock_file.write(str(os.getpid()))
+
+        # Обработка завершения работы
+        def cleanup():
+            if os.path.exists("bot.lock"):
+                os.remove("bot.lock")
+
+        import atexit
+        atexit.register(cleanup)
+
+        # Добавление обработчика ошибок
+        def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            logger.error(f"Exception while handling an update: {context.error}")
+
+        app.add_error_handler(error_handler)
 
         # Исправлено: отдельные вызовы add_handler вместо add_handlers
         app.add_handler(CommandHandler("start", start))
