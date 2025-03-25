@@ -1,3 +1,4 @@
+
 import os
 import logging
 import random
@@ -44,10 +45,15 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logging.getLogger("telegram").setLevel(logging.WARNING)
 
 logger = logging.getLogger("ZeroTwoBot")
+logger.setLevel(logging.DEBUG)
 
 # Загрузка моделей
-sentiment_analyzer = pipeline("sentiment-analysis", model="blanchefort/rubert-base-cased-sentiment")
-logger.setLevel(logging.DEBUG)
+try:
+    sentiment_analyzer = pipeline("sentiment-analysis", model="blanchefort/rubert-base-cased-sentiment")
+    logger.info("Sentiment analyzer loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load sentiment analyzer: {e}")
+    sentiment_analyzer = None
 
 class Config:
     MISTRAL_API_URL = "https://api.mistral.ai/v1/chat/completions"
@@ -96,11 +102,11 @@ class Config:
         r'\bмех\b': 'Франкс'
     }
 
-    # Расширенные фильтры безопасности
+    # Расширенные фильтры безопасности - компилируем для эффективности
     SAFETY_FILTERS = [
-        r"\b(минет|грудь|сиськи|уебать|хер|пенис|секс|порно|эротика)\b",
-        r"\b(китаез|чурок|япошек|кореец|негр|черномазый|узкоглазый)\b",
-        r"\b(расизм|нацист|геи|лгбт|фашист|гомосек|пидор)\b"
+        re.compile(r"\b(минет|грудь|сиськи|уебать|хер|пенис|секс|порно|эротика)\b", re.IGNORECASE),
+        re.compile(r"\b(китаез|чурок|япошек|кореец|негр|черномазый|узкоглазый)\b", re.IGNORECASE),
+        re.compile(r"\b(расизм|нацист|геи|лгбт|фашист|гомосек|пидор)\b", re.IGNORECASE)
     ]
 
     SAFETY_RESPONSES = [
@@ -115,7 +121,7 @@ class Config:
         "клубника": "*подаёт клубнику на лезвии* Сладкая опасность от Верховного Совета~"
     }
 
-    ALLOWED_SYMBOLS = r'[^\w\sа-яА-ЯёЁ,.!?~…💋😈❤️🔥*-]'
+    ALLOWED_SYMBOLS = re.compile(r'[^\w\sа-яА-ЯёЁ,.!?~…💋😈❤️🔥*-]')
 
     def __init__(self):
         self.banned_users = self.load_banned_users()
@@ -123,7 +129,7 @@ class Config:
     def load_banned_users(self):
         try:
             if os.path.exists(self.BAN_LIST_FILE):
-                with open(self.BAN_LIST_FILE, 'r') as f:
+                with open(self.BAN_LIST_FILE, 'r', encoding='utf-8') as f:
                     return set(json.load(f))
         except Exception as e:
             logger.error(f"Error loading ban list: {e}")
@@ -131,7 +137,7 @@ class Config:
 
     def save_banned_users(self):
         try:
-            with open(self.BAN_LIST_FILE, 'w') as f:
+            with open(self.BAN_LIST_FILE, 'w', encoding='utf-8') as f:
                 json.dump(list(self.banned_users), f)
         except Exception as e:
             logger.error(f"Error saving ban list: {e}")
@@ -147,11 +153,11 @@ provocative_phrases = [
 allowed_emojis = ['😈', '💥', '❤️🔥', '💋']
 
 def is_banned(user_id: int) -> bool:
-    return user_id in config.banned_users
+    return str(user_id) in config.banned_users or user_id in config.banned_users
 
 def check_safety_rules(user_text: str) -> bool:
     text = user_text.lower()
-    return any(re.search(pattern, text) for pattern in Config.SAFETY_FILTERS)
+    return any(pattern.search(text) for pattern in Config.SAFETY_FILTERS)
 
 def build_messages(user_text: str, context: ContextTypes.DEFAULT_TYPE) -> list:
     history = context.user_data.get('chat_history', [])
@@ -209,19 +215,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     except Exception as e:
-        logger.error(f"Start error: {str(e)}", exc_info=False)
+        logger.error(f"Start error: {str(e)}", exc_info=True)
         await update.message.reply_text("💔 Треснуло ядро... опять...")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Использование Hugging Face Transformers для анализа настроения
-    sentiment_result = sentiment_analyzer(update.message.text)[0]
-    sentiment = sentiment_result["label"]
-    confidence = sentiment_result["score"]
-
-    # Вывод результатов
-    response = f"Sentiment: {sentiment} (Confidence: {confidence:.2f})"
-    # await update.message.reply_text(response)
-
     user = update.effective_user
     if is_banned(user.id):
         return
@@ -233,16 +230,28 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_text = update.message.text
         logger.debug(f"Message from {user.full_name}: {user_text[:50]}...")
 
+        # Использование Hugging Face Transformers для анализа настроения (если доступно)
+        if sentiment_analyzer:
+            try:
+                sentiment_result = sentiment_analyzer(user_text)[0]
+                sentiment = sentiment_result["label"]
+                confidence = sentiment_result["score"]
+                logger.debug(f"Sentiment: {sentiment} (Confidence: {confidence:.2f})")
+            except Exception as e:
+                logger.warning(f"Sentiment analysis failed: {e}")
+
+        # Проверка триггеров
         for trigger, response in Config.KLAXO_TRIGGERS.items():
             if trigger in user_text.lower():
                 await update.message.reply_text(response)
                 return
 
+        # Проверка правил безопасности
         if check_safety_rules(user_text):
             context.user_data['warnings'] = context.user_data.get('warnings', 0) + 1
 
             if context.user_data['warnings'] >= Config.WARN_LIMIT:
-                config.banned_users.add(user.id)
+                config.banned_users.add(str(user.id))  # Сохраняем как строку для совместимости
                 config.save_banned_users()
                 await update.message.reply_text("🚫 Синхронизация разорвана~")
                 return
@@ -252,90 +261,122 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['silent_until'] = time.time() + Config.SILENT_TIMEOUT
             return
 
+        # Подготовка сообщений для API
         messages = build_messages(user_text, context)
 
-        async with httpx.AsyncClient(timeout=Config.TIMEOUT) as client:
-            response = await client.post(
-                Config.MISTRAL_API_URL,
-                headers={
-                    "Authorization": f"Bearer {os.environ['MISTRAL_API_KEY']}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": Config.MODEL_NAME,
-                    "messages": messages,
-                    "temperature": Config.TEMPERATURE,
-                    "max_tokens": Config.MAX_TOKENS,
-                    "frequency_penalty": Config.FREQUENCY_PENALTY,
-                    "presence_penalty": Config.PRESENCE_PENALTY
-                }
-            )
+        # Проверка наличия API ключа
+        if not os.environ.get('MISTRAL_API_KEY'):
+            logger.error("MISTRAL_API_KEY not found in environment variables")
+            await update.message.reply_text("💥 Системный сбой... API ключ не найден")
+            return
 
-            if response.status_code == 200:
-                response_data = response.json()
-                raw_answer = response_data["choices"][0]["message"]["content"]
-                logger.debug(f"Raw API response: {raw_answer}")
-
-                answer = raw_answer.split("~")[0].strip()
-                answer = fix_terminology(answer)
-
-                # Улучшенное регулярное выражение для замены латинских символов
-                answer = re.sub(
-                    r'\b([а-яА-ЯёЁ]*)[a-zA-Z]+([а-яА-ЯёЁ]*)\b',
-                    lambda m: m.group(1) + m.group(2),
-                    answer
+        # Запрос к API
+        try:
+            async with httpx.AsyncClient(timeout=Config.TIMEOUT) as client:
+                response = await client.post(
+                    Config.MISTRAL_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {os.environ['MISTRAL_API_KEY']}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": Config.MODEL_NAME,
+                        "messages": messages,
+                        "temperature": Config.TEMPERATURE,
+                        "max_tokens": Config.MAX_TOKENS,
+                        "frequency_penalty": Config.FREQUENCY_PENALTY,
+                        "presence_penalty": Config.PRESENCE_PENALTY
+                    }
                 )
 
-                for eng, ru in Config.REPLACE_RULES.items():
-                    answer = re.sub(fr'\b{re.escape(eng)}\b', ru, answer, flags=re.IGNORECASE)
+                if response.status_code == 200:
+                    response_data = response.json()
+                    raw_answer = response_data["choices"][0]["message"]["content"]
+                    logger.debug(f"Raw API response: {raw_answer}")
 
-                for word in answer.split():
-                    parsed = morph.parse(word)[0]
-                    if 'LATN' in parsed.tag:
-                        answer = answer.replace(word, '')
+                    # Обработка ответа
+                    answer = raw_answer.split("~")[0].strip()
+                    answer = fix_terminology(answer)
 
-                answer = re.sub(r'^[^а-яА-ЯёЁ]+', '', answer)
-                answer = re.sub(r'\s+', ' ', answer).strip()
-                answer = re.sub(Config.ALLOWED_SYMBOLS, '', answer)
+                    # Улучшенное регулярное выражение для замены латинских символов
+                    answer = re.sub(
+                        r'\b([а-яА-ЯёЁ]*)[a-zA-Z]+([а-яА-ЯёЁ]*)\b',
+                        lambda m: m.group(1) + m.group(2),
+                        answer
+                    )
 
-                sentences = re.split(r'[.!?…]', answer)
-                answer = '~'.join([s.strip() for s in sentences[:Config.MAX_SENTENCES] if s.strip()])
+                    # Применение правил замены
+                    for eng, ru in Config.REPLACE_RULES.items():
+                        if eng.startswith(r'\b'):  # Это уже регулярное выражение
+                            answer = re.sub(eng, ru, answer, flags=re.IGNORECASE)
+                        else:
+                            answer = re.sub(fr'\b{re.escape(eng)}\b', ru, answer, flags=re.IGNORECASE)
 
-                if len(answer.split()) < 5:
-                    answer += f" {random.choice(provocative_phrases)}"
+                    # Обработка латинских слов
+                    for word in answer.split():
+                        parsed = morph.parse(word)[0]
+                        if 'LATN' in parsed.tag:
+                            answer = answer.replace(word, '')
 
-                if not answer.strip():
-                    answer = "Хи-хи~ Повтори, я отвлеклась на ядро рёвозавра~ 💋"
+                    # Очистка и форматирование
+                    answer = re.sub(r'^[^а-яА-ЯёЁ]+', '', answer)
+                    answer = re.sub(r'\s+', ' ', answer).strip()
+                    answer = Config.ALLOWED_SYMBOLS.sub('', answer)
 
-                if random.random() < Config.EMOJI_PROBABILITY:
-                    emoji = random.choice(allowed_emojis)
-                    answer = f"{answer.rstrip('.!?')} {emoji}"
+                    # Ограничение количества предложений
+                    sentences = re.split(r'[.!?…]', answer)
+                    answer = '~'.join([s.strip() for s in sentences[:Config.MAX_SENTENCES] if s.strip()])
 
-                if len(answer.split()) > 25:
-                    answer = '~'.join(answer.split('~')[:2]) + '...'
+                    # Добавление провокационной фразы, если ответ слишком короткий
+                    if len(answer.split()) < 5:
+                        answer += f" {random.choice(provocative_phrases)}"
 
-                # Улучшенная обработка истории чата
-                history = context.user_data.setdefault('chat_history', [])
-                history.extend([
-                    {"role": "user", "content": user_text},
-                    {"role": "assistant", "content": answer}
-                ])
-                # Сохраняем только последние сообщения для контекста
-                if len(history) > Config.MAX_HISTORY * 2:
-                    context.user_data['chat_history'] = history[-(Config.MAX_HISTORY * 2):]
+                    # Проверка на пустой ответ
+                    if not answer.strip():
+                        answer = "Хи-хи~ Повтори, я отвлеклась на ядро рёвозавра~ 💋"
 
-                await update.message.reply_text(answer)
-                logger.debug(f"Response sent: {answer[:50]}...")
+                    # Добавление эмодзи
+                    if random.random() < Config.EMOJI_PROBABILITY:
+                        emoji = random.choice(allowed_emojis)
+                        answer = f"{answer.rstrip('.!?')} {emoji}"
 
-            else:
-                error_msg = f"Mistral API Error [{response.status_code}]: {response.text[:200]}"
-                logger.error(error_msg)
-                await update.message.reply_text("💥 Системный сбой... попробуй снова~")
+                    # Ограничение длины ответа
+                    if len(answer.split()) > 25:
+                        answer = '~'.join(answer.split('~')[:2]) + '...'
+
+                    # Обновление истории чата
+                    history = context.user_data.setdefault('chat_history', [])
+                    history.extend([
+                        {"role": "user", "content": user_text},
+                        {"role": "assistant", "content": answer}
+                    ])
+                    # Сохраняем только последние сообщения для контекста
+                    if len(history) > Config.MAX_HISTORY * 2:
+                        context.user_data['chat_history'] = history[-(Config.MAX_HISTORY * 2):]
+
+                    # Отправка ответа
+                    await update.message.reply_text(answer)
+                    logger.debug(f"Response sent: {answer[:50]}...")
+
+                else:
+                    error_msg = f"Mistral API Error [{response.status_code}]: {response.text[:200]}"
+                    logger.error(error_msg)
+                    await update.message.reply_text("💥 Системный сбой... попробуй снова~")
+
+        except httpx.TimeoutException:
+            logger.error("API request timed out")
+            await update.message.reply_text("⏱️ Время синхронизации истекло... попробуй снова~")
+        except httpx.RequestError as e:
+            logger.error(f"API request error: {e}")
+            await update.message.reply_text("🌐 Проблемы с подключением к Верховному Совету...")
+        except Exception as e:
+            logger.error(f"Error processing API response: {e}", exc_info=True)
+            await update.message.reply_text("💔 Критическое повреждение... опять...")
 
     except Exception as e:
         logger.error(
             f"Error handling message: {str(e)}",
-            exc_info=isinstance(e, httpx.HTTPError)
+            exc_info=True
         )
         await update.message.reply_text("💔 Критическое повреждение... опять...")
 
@@ -357,57 +398,94 @@ async def ban_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
-        user_id = int(context.args[0])
+        if not context.args:
+            await update.message.reply_text("Использование: /ban <user_id>")
+            return
+            
+        user_id = context.args[0]
         config.banned_users.add(user_id)
         config.save_banned_users()
         await update.message.reply_text(f"Пользователь {user_id} забанен")
-    except:
-        await update.message.reply_text("Использование: /ban <user_id>")
+    except Exception as e:
+        logger.error(f"Error banning user: {e}")
+        await update.message.reply_text("Ошибка при бане пользователя. Использование: /ban <user_id>")
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик ошибок для Application."""
+    logger.error(f"Exception while handling an update: {context.error}", exc_info=context.error)
+    
+    # Отправка сообщения пользователю, если возможно
+    if update and isinstance(update, Update) and update.effective_message:
+        await update.effective_message.reply_text(
+            "💥 Произошла ошибка при обработке запроса. Попробуйте позже."
+        )
 
 def main():
+    # Проверка наличия необходимых переменных окружения
     required_vars = ['TELEGRAM_TOKEN', 'MISTRAL_API_KEY']
-    if missing := [var for var in required_vars if not os.environ.get(var)]:
+    missing = [var for var in required_vars if not os.environ.get(var)]
+    
+    if missing:
         logger.critical("Отсутствуют переменные окружения: %s", ", ".join(missing))
-        sys.exit(1)  # Добавлен код выхода при отсутствии переменных окружения
+        sys.exit(1)
 
     try:
-        app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
-
         # Проверка на наличие уже запущенных экземпляров бота
-        if os.path.exists("bot.lock"):
-            logger.critical("Другой экземпляр бота уже запущен. Завершение выполнения.")
-            sys.exit(1)
+        lock_file_path = "bot.lock"
+        if os.path.exists(lock_file_path):
+            try:
+                with open(lock_file_path, "r") as lock_file:
+                    pid = int(lock_file.read().strip())
+                    # Проверяем, существует ли процесс с таким PID
+                    try:
+                        os.kill(pid, 0)  # Сигнал 0 не убивает процесс, а только проверяет его существование
+                        logger.critical(f"Другой экземпляр бота уже запущен (PID: {pid}). Завершение выполнения.")
+                        sys.exit(1)
+                    except OSError:
+                        # Процесс не существует, можно удалить файл блокировки
+                        logger.warning(f"Найден устаревший файл блокировки. Удаление...")
+                        os.remove(lock_file_path)
+            except (ValueError, IOError) as e:
+                logger.warning(f"Ошибка при чтении файла блокировки: {e}. Удаление...")
+                os.remove(lock_file_path)
 
         # Создание файла блокировки
-        with open("bot.lock", "w") as lock_file:
+        with open(lock_file_path, "w") as lock_file:
             lock_file.write(str(os.getpid()))
 
         # Обработка завершения работы
         def cleanup():
-            if os.path.exists("bot.lock"):
-                os.remove("bot.lock")
+            if os.path.exists(lock_file_path):
+                try:
+                    os.remove(lock_file_path)
+                    logger.info("Файл блокировки удален")
+                except Exception as e:
+                    logger.error(f"Ошибка при удалении файла блокировки: {e}")
 
         import atexit
         atexit.register(cleanup)
 
-        # Добавление обработчика ошибок
-        def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-            logger.error(f"Exception while handling an update: {context.error}")
+        # Инициализация приложения
+        app = Application.builder().token(os.environ['TELEGRAM_TOKEN']).build()
 
+        # Добавление обработчиков
         app.add_error_handler(error_handler)
-
-        # Исправлено: отдельные вызовы add_handler вместо add_handlers
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("ban", ban_user))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
         logger.info("Инициализация системы FRANXX...")
-        # Обновлены параметры run_polling для совместимости с python-telegram-bot v20+
         app.run_polling(drop_pending_updates=True)
 
     except Exception as e:
         logger.critical("Фатальная ошибка: %s", str(e), exc_info=True)
+        # Удаление файла блокировки в случае ошибки
+        if os.path.exists("bot.lock"):
+            try:
+                os.remove("bot.lock")
+            except:
+                pass
         raise
 
 if __name__ == "__main__":

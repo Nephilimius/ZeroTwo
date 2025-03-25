@@ -1,5 +1,5 @@
 {
     "CodeGPT.apiKey": "CodeGPT Plus Beta",
     "Codegeex.CommitMessage.LanguagePreference": "English",
-    "codium.codeCompletion.enable": false
+    "codium.codeCompletion.enable": true
 }
